@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinOffice - Controle Financeiro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Configuração Customizada do Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        },
+                        dark: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Suavização de scroll e customizações de scrollbar */
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Oculta setas do input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* Transições de modal */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
+        .modal-leave { opacity: 1; transform: scale(1); }
+        .modal-leave-active { opacity: 0; transform: scale(0.95); transition: all 0.2s ease-in; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased overflow-hidden flex h-screen">
+
+    <!-- Mobile Overlay (Fundo escuro ao abrir sidebar no celular) -->
+    <div id="mobileOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-20 hidden lg:hidden transition-opacity" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="bg-dark-900 text-slate-300 w-72 flex-shrink-0 absolute inset-y-0 left-0 transform -translate-x-full lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out z-30 flex flex-col shadow-xl">
+        
+        <!-- Logo -->
+        <div class="h-16 flex items-center px-6 bg-dark-800 border-b border-slate-700/50">
+            <i class="fa-solid fa-scale-balanced text-brand-500 text-2xl mr-3"></i>
+            <span class="text-xl font-bold text-white tracking-wide">Fin<span class="text-brand-500">Office</span></span>
+            <button class="ml-auto lg:hidden text-slate-400 hover:text-white" onclick="toggleSidebar()">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Resumo Rápido Sidebar -->
+        <div class="p-6 border-b border-slate-700/50">
+            <p class="text-xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Saldo Atual</p>
+            <h2 id="sidebarBalance" class="text-3xl font-bold text-white mb-1">R$ 0,00</h2>
+            <div id="sidebarBalanceStatus" class="flex items-center text-sm mt-2 text-brand-500">
+                <i class="fa-solid fa-arrow-trend-up mr-2"></i> Positivo
+            </div>
+        </div>
+
+        <!-- Navegação e Filtros -->
+        <div class="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar">
+            <nav class="space-y-1 mb-8">
+                <p class="px-3 text-xs uppercase tracking-wider text-slate-500 mb-2 font-semibold">Menu Principal</p>
+                <a href="#" class="flex items-center px-3 py-2.5 bg-brand-600/10 text-brand-500 rounded-lg group transition-colors">
+                    <i class="fa-solid fa-chart-pie w-6 text-center mr-2"></i>
+                    <span class="font-medium">Painel de Controle</span>
+                </a>
+            </nav>
+
+            <!-- Filtros Rápidos -->
+            <div class="px-3 mb-6">
+                <p class="text-xs uppercase tracking-wider text-slate-500 mb-3 font-semibold">Filtros Rápidos</p>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Mês de Referência</label>
+                        <select id="filterMonth" class="w-full bg-dark-800 border border-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white appearance-none">
+                            <option value="all">Todos os Meses</option>
+                            <!-- Preenchido via JS -->
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Tipo de Movimento</label>
+                        <select id="filterType" class="w-full bg-dark-800 border border-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white appearance-none">
+                            <option value="all">Entradas e Saídas</option>
+                            <option value="entrada">Apenas Entradas</option>
+                            <option value="saida">Apenas Saídas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Usuário Base Sidebar -->
+        <div class="p-4 border-t border-slate-700/50 bg-dark-800 flex items-center">
+            <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-white font-bold mr-3">
+                <i class="fa-solid fa-user-tie text-sm"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-white">Escritório Central</p>
+                <p class="text-xs text-slate-400">Gestão Financeira</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative w-full">
+        
+        <!-- Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 z-10 flex-shrink-0">
+            <div class="flex items-center">
+                <button class="lg:hidden text-slate-500 hover:text-slate-700 mr-4" onclick="toggleSidebar()">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <h1 class="text-xl font-semibold text-slate-800">Visão Geral</h1>
+            </div>
+            
+            <div>
+                <button onclick="openModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-brand-500/30 flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden sm:inline">Novo Lançamento</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Área de Conteúdo Rolável -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 relative">
+            
+            <!-- Cards de Resumo -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Total de Entradas -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mr-4">
+                        <i class="fa-solid fa-arrow-down text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Total de Entradas</p>
+                        <h3 id="cardIncome" class="text-2xl font-bold text-slate-800">R$ 0,00</h3>
+                    </div>
+                </div>
+
+                <!-- Total de Saídas -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mr-4">
+                        <i class="fa-solid fa-arrow-up text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Total de Saídas</p>
+                        <h3 id="cardExpense" class="text-2xl font-bold text-slate-800">R$ 0,00</h3>
+                    </div>
+                </div>
+
+                <!-- Saldo Líquido -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center">
+                    <div id="cardBalanceIconBg" class="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 mr-4 transition-colors">
+                        <i id="cardBalanceIcon" class="fa-solid fa-wallet text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Saldo Líquido</p>
+                        <h3 id="cardBalance" class="text-2xl font-bold text-slate-800">R$ 0,00</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Lançamentos -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col mb-8">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-slate-800">Extrato Financeiro</h2>
+                    <span class="text-xs font-medium bg-slate-200 text-slate-600 py-1 px-2 rounded-md" id="transactionCount">0 registros</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-6 py-4 font-medium">Data</th>
+                                <th class="px-6 py-4 font-medium">Descrição</th>
+                                <th class="px-6 py-4 font-medium">Categoria</th>
+                                <th class="px-6 py-4 font-medium text-right">Valor (R$)</th>
+                                <th class="px-6 py-4 font-medium text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionList" class="divide-y divide-slate-100 text-sm">
+                            <!-- Linhas inseridas via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Estado Vazio -->
+                <div id="emptyState" class="hidden flex-col items-center justify-center py-12 px-4 text-center">
+                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                        <i class="fa-regular fa-folder-open text-2xl"></i>
+                    </div>
+                    <h3 class="text-base font-medium text-slate-700 mb-1">Nenhum lançamento encontrado</h3>
+                    <p class="text-sm text-slate-500 max-w-sm">Não há registros para os filtros selecionados ou você ainda não cadastrou nenhuma movimentação.</p>
+                    <button onclick="openModal()" class="mt-4 text-brand-600 font-medium text-sm hover:underline">Adicionar primeiro lançamento</button>
+                </div>
+            </div>
+            
+            <!-- Espaço extra pro scroll -->
+            <div class="h-10"></div>
+            
+        </div>
+
+        <!-- Footer Profissional -->
+        <footer class="bg-white border-t border-slate-200 py-4 px-6 text-sm flex-shrink-0 z-10">
+            <div class="flex flex-col md:flex-row justify-between items-center text-slate-500">
+                <p>&copy; <span id="yearCopyright"></span> FinOffice. Todos os direitos reservados.</p>
+                <div class="flex items-center mt-2 md:mt-0 space-x-4">
+                    <span>Versão 1.0.0</span>
+                    <span class="hidden md:inline text-slate-300">|</span>
+                    <span class="flex items-center">
+                        <i class="fa-regular fa-clock mr-1"></i>
+                        Atualizado em: <span id="lastUpdated" class="ml-1 font-medium text-slate-700"></span>
+                    </span>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Modal de Formulário -->
+    <div id="transactionModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        
+        <!-- Conteúdo do Modal -->
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 z-10 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-semibold text-slate-800" id="modalTitle">Novo Lançamento</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition-colors p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="transactionForm" class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                <input type="hidden" id="transactionId">
+                
+                <!-- Tipo de Lançamento (Radio Buttons) -->
+                <div class="mb-5">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Tipo de Movimentação</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="type" value="entrada" class="peer sr-only" checked onchange="updateCategoryOptions()">
+                            <div class="rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-arrow-down mr-2 text-emerald-500"></i>
+                                <span class="font-medium text-sm">Entrada</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="type" value="saida" class="peer sr-only" onchange="updateCategoryOptions()">
+                            <div class="rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50 peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-700 transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-arrow-up mr-2 text-rose-500"></i>
+                                <span class="font-medium text-sm">Saída</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <label for="description" class="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                    <input type="text" id="description" required placeholder="Ex: Pagamento de honorários processo X" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all sm:text-sm">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                    <div>
+                        <label for="amount" class="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-slate-500 sm:text-sm">R$</span>
+                            </div>
+                            <input type="number" id="amount" step="0.01" min="0.01" required placeholder="0,00" class="w-full border border-slate-300 rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all sm:text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-slate-700 mb-1">Data</label>
+                        <input type="date" id="date" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all sm:text-sm text-slate-700">
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label for="category" class="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+                    <select id="category" required onchange="handleCategoryChange()" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all sm:text-sm bg-white">
+                        <!-- Opções injetadas via JS -->
+                    </select>
+                    
+                    <!-- Campo de texto para nova categoria (oculto por padrão) -->
+                    <div id="newCategoryWrapper" class="hidden mt-3">
+                        <input type="text" id="newCategoryName" placeholder="Digite o nome da nova categoria..." class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all sm:text-sm bg-brand-50">
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-3 mt-auto">
+                    <button type="button" onclick="closeModal()" class="px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 transition-colors shadow-sm">
+                        Salvar Lançamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Principal -->
+    <script>
+        // --- 1. CONFIGURAÇÕES E ESTADO GLOBAL ---
+        
+        // Estado das categorias customizadas (inicia vazio e cresce conforme uso)
+        let customCategories = {
+            entrada: [],
+            saida: []
+        };
+
+        // Estado do aplicativo
+        let transactions = [];
+        let editingId = null;
+
+        // --- 2. INICIALIZAÇÃO E EVENTOS ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar Data Rodapé
+            const now = new Date();
+            document.getElementById('yearCopyright').textContent = now.getFullYear();
+            updateLastUpdatedTime();
+
+            // Carregar dados
+            loadData();
+
+            // Setup Listeners
+            document.getElementById('transactionForm').addEventListener('submit', handleFormSubmit);
+            document.getElementById('filterMonth').addEventListener('change', render);
+            document.getElementById('filterType').addEventListener('change', render);
+            
+            // Setar data default no form como hoje
+            document.getElementById('date').valueAsDate = new Date();
+        });
+
+        // --- 3. LÓGICA DE NEGÓCIO (CRUD E STORAGE) ---
+
+        function loadData() {
+            // Carregar categorias salvas
+            const storedCategories = localStorage.getItem('finOffice_categories');
+            if (storedCategories) {
+                customCategories = JSON.parse(storedCategories);
+            }
+
+            // Carregar lançamentos
+            const storedData = localStorage.getItem('finOffice_transactions');
+            if (storedData) {
+                transactions = JSON.parse(storedData);
+            } else {
+                // Inicia vazio, já que não temos mais categorias pré-definidas para os dados de demonstração
+                transactions = [];
+                saveData();
+            }
+            populateMonthFilter();
+            render();
+        }
+
+        function saveData() {
+            localStorage.setItem('finOffice_transactions', JSON.stringify(transactions));
+            populateMonthFilter();
+            updateLastUpdatedTime();
+        }
+
+        function saveCategories() {
+            localStorage.setItem('finOffice_categories', JSON.stringify(customCategories));
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const description = document.getElementById('description').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const date = document.getElementById('date').value;
+            const type = document.querySelector('input[name="type"]:checked').value;
+            let category = document.getElementById('category').value;
+
+            // Lógica para interceptar, salvar e usar a nova categoria
+            if (category === '__new__') {
+                const newCatName = document.getElementById('newCategoryName').value.trim();
+                if (!newCatName) {
+                    alert("Por favor, digite o nome da nova categoria.");
+                    return;
+                }
+                
+                // Verifica se a categoria já existe (ignorando maiúsculas/minúsculas)
+                const exists = customCategories[type].find(c => c.toLowerCase() === newCatName.toLowerCase());
+                
+                if (!exists) {
+                    customCategories[type].push(newCatName);
+                    customCategories[type].sort(); // Mantém a lista em ordem alfabética
+                    saveCategories();
+                    category = newCatName;
+                } else {
+                    category = exists; // Evita duplicar se o usuário digitar algo que já existe
+                }
+            }
+
+            if (!description || isNaN(amount) || !date || !category) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            const transactionData = {
+                id: editingId || Date.now().toString(),
+                description,
+                amount,
+                date,
+                type,
+                category
+            };
+
+            if (editingId) {
+                // Atualizar
+                const index = transactions.findIndex(t => t.id === editingId);
+                if (index !== -1) transactions[index] = transactionData;
+            } else {
+                // Inserir
+                transactions.push(transactionData);
+            }
+
+            // Ordena descrescente por data
+            transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            saveData();
+            closeModal();
+            render();
+        }
+
+        function editTransaction(id) {
+            const transaction = transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            editingId = id;
+            document.getElementById('modalTitle').textContent = 'Editar Lançamento';
+            
+            document.getElementById('description').value = transaction.description;
+            document.getElementById('amount').value = transaction.amount;
+            document.getElementById('date').value = transaction.date;
+            
+            // Set radio type and trigger category update
+            const typeRadios = document.getElementsByName('type');
+            for (let radio of typeRadios) {
+                if (radio.value === transaction.type) {
+                    radio.checked = true;
+                    updateCategoryOptions();
+                    break;
+                }
+            }
+            
+            // Set category after options are populated
+            setTimeout(() => {
+                document.getElementById('category').value = transaction.category;
+            }, 10);
+
+            openModal();
+        }
+
+        function deleteTransaction(id) {
+            if (confirm("Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita.")) {
+                transactions = transactions.filter(t => t.id !== id);
+                saveData();
+                render();
+            }
+        }
+
+        // --- 4. RENDERIZAÇÃO E UI ---
+
+        function render() {
+            const filterMonth = document.getElementById('filterMonth').value;
+            const filterType = document.getElementById('filterType').value;
+
+            // Filtragem
+            let filteredTransactions = transactions.filter(t => {
+                const monthMatch = filterMonth === 'all' || t.date.substring(0, 7) === filterMonth;
+                const typeMatch = filterType === 'all' || t.type === filterType;
+                return monthMatch && typeMatch;
+            });
+
+            // Cálculos
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            filteredTransactions.forEach(t => {
+                if (t.type === 'entrada') totalIncome += t.amount;
+                else if (t.type === 'saida') totalExpense += t.amount;
+            });
+
+            const balance = totalIncome - totalExpense;
+
+            // Atualizar Cards e Sidebar
+            document.getElementById('cardIncome').textContent = formatCurrency(totalIncome);
+            document.getElementById('cardExpense').textContent = formatCurrency(totalExpense);
+            
+            const balanceEl = document.getElementById('cardBalance');
+            const sidebarBalanceEl = document.getElementById('sidebarBalance');
+            const sidebarStatusEl = document.getElementById('sidebarBalanceStatus');
+            const cardBalanceIconBg = document.getElementById('cardBalanceIconBg');
+            const cardBalanceIcon = document.getElementById('cardBalanceIcon');
+
+            balanceEl.textContent = formatCurrency(balance);
+            sidebarBalanceEl.textContent = formatCurrency(balance);
+
+            // Ajuste visual de saldo positivo/negativo
+            if (balance >= 0) {
+                balanceEl.className = "text-2xl font-bold text-emerald-600";
+                sidebarBalanceEl.className = "text-3xl font-bold text-white mb-1";
+                
+                sidebarStatusEl.innerHTML = '<i class="fa-solid fa-arrow-trend-up mr-2"></i> Positivo';
+                sidebarStatusEl.className = "flex items-center text-sm mt-2 text-emerald-400";
+                
+                cardBalanceIconBg.className = "w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mr-4 transition-colors";
+                cardBalanceIcon.className = "fa-solid fa-wallet text-xl";
+            } else {
+                balanceEl.className = "text-2xl font-bold text-rose-600";
+                sidebarBalanceEl.className = "text-3xl font-bold text-white mb-1";
+                
+                sidebarStatusEl.innerHTML = '<i class="fa-solid fa-arrow-trend-down mr-2"></i> Negativo';
+                sidebarStatusEl.className = "flex items-center text-sm mt-2 text-rose-400";
+                
+                cardBalanceIconBg.className = "w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mr-4 transition-colors";
+                cardBalanceIcon.className = "fa-solid fa-triangle-exclamation text-xl";
+            }
+
+            // Renderizar Tabela
+            const tbody = document.getElementById('transactionList');
+            const emptyState = document.getElementById('emptyState');
+            const tableWrapper = tbody.parentElement;
+            
+            document.getElementById('transactionCount').textContent = `${filteredTransactions.length} registro${filteredTransactions.length !== 1 ? 's' : ''}`;
+
+            tbody.innerHTML = '';
+
+            if (filteredTransactions.length === 0) {
+                tableWrapper.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                tableWrapper.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                filteredTransactions.forEach(t => {
+                    const isIncome = t.type === 'entrada';
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors group";
+                    
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">
+                            ${formatDateBr(t.date)}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-slate-800">${t.description}</div>
+                            <div class="lg:hidden text-xs text-slate-500 mt-1">${t.category}</div>
+                        </td>
+                        <td class="px-6 py-4 hidden lg:table-cell">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                ${t.category}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right font-medium ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
+                            ${isIncome ? '+' : '-'} ${formatCurrency(t.amount)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-slate-400">
+                            <button onclick="editTransaction('${t.id}')" class="p-1.5 hover:text-brand-600 transition-colors mr-2" title="Editar">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteTransaction('${t.id}')" class="p-1.5 hover:text-rose-600 transition-colors" title="Excluir">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // --- 5. FUNÇÕES AUXILIARES E INTERAÇÕES ---
+
+        function updateCategoryOptions() {
+            const type = document.querySelector('input[name="type"]:checked').value;
+            const categorySelect = document.getElementById('category');
+            
+            categorySelect.innerHTML = '';
+            
+            // Renderiza categorias existentes (se houver)
+            if (customCategories[type].length === 0) {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Nenhuma categoria salva...";
+                option.disabled = true;
+                option.selected = true;
+                categorySelect.appendChild(option);
+            } else {
+                customCategories[type].forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    categorySelect.appendChild(option);
+                });
+            }
+
+            // Adiciona sempre a opção de criar nova categoria no final da lista
+            const newOption = document.createElement('option');
+            newOption.value = "__new__";
+            newOption.textContent = "+ Criar nova categoria...";
+            newOption.className = "font-bold text-brand-600 bg-brand-50";
+            categorySelect.appendChild(newOption);
+
+            // Se for um novo lançamento com lista vazia, pré-selecionar o "__new__"
+            if (customCategories[type].length === 0 && !editingId) {
+                categorySelect.value = "__new__";
+            }
+            
+            handleCategoryChange(); // Atualiza a interface
+        }
+
+        // Função para mostrar/esconder o campo de texto da nova categoria
+        function handleCategoryChange() {
+            const categorySelect = document.getElementById('category');
+            const newCategoryWrapper = document.getElementById('newCategoryWrapper');
+            const newCategoryName = document.getElementById('newCategoryName');
+            
+            if (categorySelect.value === '__new__') {
+                newCategoryWrapper.classList.remove('hidden');
+                newCategoryName.required = true;
+                newCategoryName.focus();
+            } else {
+                newCategoryWrapper.classList.add('hidden');
+                newCategoryName.required = false;
+                newCategoryName.value = '';
+            }
+        }
+
+        function populateMonthFilter() {
+            const select = document.getElementById('filterMonth');
+            const currentValue = select.value;
+            
+            // Extrair meses únicos no formato YYYY-MM
+            const months = [...new Set(transactions.map(t => t.date.substring(0, 7)))];
+            
+            // Ordenar descrescente
+            months.sort((a, b) => b.localeCompare(a));
+            
+            // Manter a opção "Todos"
+            select.innerHTML = '<option value="all">Todos os Meses</option>';
+            
+            months.forEach(monthStr => {
+                const [year, month] = monthStr.split('-');
+                const date = new Date(year, month - 1);
+                const monthName = date.toLocaleString('pt-BR', { month: 'long' });
+                const label = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
+                
+                const option = document.createElement('option');
+                option.value = monthStr;
+                option.textContent = label;
+                select.appendChild(option);
+            });
+            
+            // Restaurar valor selecionado se ainda existir
+            if (months.includes(currentValue) || currentValue === 'all') {
+                select.value = currentValue;
+            }
+        }
+
+        // Manipulação Modal
+        const modal = document.getElementById('transactionModal');
+        
+        function openModal() {
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden'); // Evita scroll do body
+            
+            if (!editingId) {
+                document.getElementById('modalTitle').textContent = 'Novo Lançamento';
+                document.getElementById('transactionForm').reset();
+                document.getElementById('date').valueAsDate = new Date();
+                updateCategoryOptions();
+            }
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            editingId = null;
+            document.getElementById('transactionForm').reset();
+        }
+
+        // Toggle Sidebar Mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            sidebar.classList.toggle('-translate-x-full');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                overlay.classList.add('hidden');
+            } else {
+                overlay.classList.remove('hidden');
+            }
+        }
+
+        // Formatação
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        }
+
+        function formatDateBr(dateString) {
+            // dateString vem no formato YYYY-MM-DD
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        function getTodayString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function updateLastUpdatedTime() {
+            const now = new Date();
+            const formattedDate = now.toLocaleString('pt-BR', { 
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            document.getElementById('lastUpdated').textContent = formattedDate;
+        }
+
+    </script>
+</body>
+</html>
